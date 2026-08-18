@@ -5,9 +5,91 @@ import path from 'path';
 // กำหนดให้รันทดสอบเรียงลำดับทีละเคสตั้งแต่ 1 ถึง 7 (Sequential / Serial execution)
 test.describe.configure({ mode: 'serial' });
 
+/**
+ * 🧹 ฟังก์ชันสำหรับเคลียร์/ลบโพสต์และแบบร่างทั้งหมดของบัญชีผู้ใช้
+ * เพื่อให้ระบบพร้อมสำหรับการทดสอบรอบใหม่แบบ Clean State 100%
+ */
+async function cleanAllUserPostsAndDrafts(page: any) {
+  try {
+    // 1. นำทางไปยังหน้าโปรไฟล์
+    await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
+    await page.waitForTimeout(1000);
+
+    // 2. เคลียร์แท็บ "โพสต์ของฉัน" ทั้งหมด
+    const myPostsTab = page.getByRole('button', { name: /โพสต์ของฉัน/i });
+    if (await myPostsTab.isVisible().catch(() => false)) {
+      await myPostsTab.click();
+      await page.waitForTimeout(1000);
+
+      for (let i = 0; i < 3; i++) {
+        const postLink = page.locator('a[href^="/post/"]:not([href*="/post/edit/"])').first();
+        if (!(await postLink.isVisible({ timeout: 1500 }).catch(() => false))) break;
+
+        await postLink.click();
+        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์")').first();
+        if (await deleteBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+          await deleteBtn.click();
+          const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
+          if (await confirmBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+            await confirmBtn.click();
+            await page.waitForTimeout(1000);
+            const okBtn = page.getByRole('button', { name: 'OK' });
+            if (await okBtn.isVisible().catch(() => false)) {
+              await okBtn.click();
+            }
+          }
+          await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
+          await page.getByRole('button', { name: /โพสต์ของฉัน/i }).click();
+          await page.waitForTimeout(1000);
+        } else {
+          break;
+        }
+      }
+    }
+
+    // 3. เคลียร์แท็บ "แบบร่าง" ทั้งหมด
+    await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
+    const draftsTab = page.getByRole('button', { name: /แบบร่าง/i });
+    if (await draftsTab.isVisible().catch(() => false)) {
+      await draftsTab.click();
+      await page.waitForTimeout(1000);
+
+      for (let i = 0; i < 3; i++) {
+        const draftLink = page.locator('a[href^="/post/"]:not([href*="/post/edit/"])').first();
+        if (!(await draftLink.isVisible({ timeout: 1500 }).catch(() => false))) break;
+
+        await draftLink.click();
+        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์"), button:has-text("ลบ")').first();
+        if (await deleteBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+          await deleteBtn.click();
+          const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
+          if (await confirmBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+            await confirmBtn.click();
+            await page.waitForTimeout(1000);
+            const okBtn = page.getByRole('button', { name: 'OK' });
+            if (await okBtn.isVisible().catch(() => false)) {
+              await okBtn.click();
+            }
+          }
+          await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
+          await page.getByRole('button', { name: /แบบร่าง/i }).click();
+          await page.waitForTimeout(1000);
+        } else {
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    // หากเกิดข้อผิดพลาด ให้ข้ามไปขั้นตอนการสร้างโพสต์ทันที
+  }
+}
+
 test.describe('Scenario 2.1: สร้างและเผยแพร่โพสต์สำเร็จ', () => {
 
   test('[Positive] TC-POST-01: สร้างโพสต์ด้วยข้อมูลที่ถูกต้องครบถ้วน', async ({ page }) => {
+    // ขยายเวลารองรับการเคลียร์ข้อมูลเดิมและสร้างโพสต์ใหม่
+    test.setTimeout(90000);
+
     /* 📌 0. กำหนดข้อความและตำแหน่งไฟล์ที่ใช้อัปโหลดทั้งหมดไว้ด้านบนสุด (Test Data) */
     const postTitle = 'สรุปไวยากรณ์ภาษาอังกฤษ A–Z (English Grammar Essentials: A–Z Guide)';
     const shortSummary = 'สรุปเนื้อหาวิชาภาษาอังกฤษตั้งแต่ A–Z ครอบคลุมคำศัพท์ ไวยากรณ์ \nโครงสร้างประโยค กาล (Tenses) และการใช้ภาษาในชีวิตประจำวัน \nเหมาะสำหรับนักเรียนระดับมัธยมต้น ใช้ทบทวนก่อนสอบได้อย่างรวดเร็ว';
@@ -20,22 +102,19 @@ test.describe('Scenario 2.1: สร้างและเผยแพร่โพ
       path.join(__dirname, '../../test-data/images/สระ.png')
     ];
 
-    // 1. เข้าสู่หน้าเว็บหลัก
+    // 1. เข้าสู่หน้าเว็บหลัก และเข้าสู่ระบบ
     await page.goto('https://share-ed-frontend-gamma.vercel.app/');
-
-    // 2. คลิกข้อความบนหน้าหลัก
-    await page.getByText('แพลตฟอร์มการเรียนรู้แห่งใหม่สำหรับคุณแบ่งปันความรู้ สู่ความสำเร็จเรียนฟรีไม่มี').click();
-
-    // 3. คลิกปุ่ม "เข้าสู่ระบบ"
     await page.getByRole('link', { name: 'เข้าสู่ระบบ' }).click();
-
-    // 4. เข้าสู่ระบบ
-    await page.getByRole('heading', { name: 'เข้าสู่ระบบ' }).click();
     await page.getByRole('textbox', { name: 'อีเมล' }).fill('ptwptw1600@gmail.com');
     await page.getByRole('textbox', { name: 'รหัสผ่าน' }).fill('_Eart1101');
     await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
+    await expect(page).toHaveURL(/.*home/, { timeout: 15000 });
 
-    // 5. คลิก icon ปากกา และกด ปุ่ม "สร้างโพสต์" 
+    // 2. ล้างโพสต์เก่าและแบบร่างทั้งหมดของบัญชีก่อนเริ่มต้นการทดสอบ (Initial Cleanup)
+    await cleanAllUserPostsAndDrafts(page);
+
+    // 3. เริ่มต้นกระบวนการสร้างโพสต์ใหม่
+    await page.goto('https://share-ed-frontend-gamma.vercel.app/home');
     await page.getByRole('link', { name: 'สร้างโพสต์' }).click();
 
     // 6. กรอกชื่อหัวข้อสรุป
@@ -328,26 +407,30 @@ test.describe('Scenario 2.7: ระบบปฏิเสธการสร้า
     // 2. ไปยังหน้าโปรไฟล์ เปิดดูแท็บ "แบบร่าง" และลบโพสต์ในแบบร่างทิ้งก่อนสร้างโพสต์
     await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
     await page.getByRole('button', { name: /แบบร่าง/i }).click();
+    await page.waitForTimeout(1500);
 
-    //  หากมีโพสต์ในแบบร่าง ให้คลิกเข้าไปลบ
-    // const draftCard = page.getByText(/แบบร่าง|DRAFT/i).first();
-    // if (await draftCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-    //   await draftCard.click();
-    //   // กดปุ่มลบโพสต์ในแบบร่าง
-    //   const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์"), button:has-text("ลบ")').first();
-    //   if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    //     await deleteBtn.click();
-    //     const confirmDeleteBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")');
-    //     if (await confirmDeleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    //       await confirmDeleteBtn.click();
-    //       await page.waitForTimeout(1000);
-    //       const okBtn = page.getByRole('button', { name: 'OK' });
-    //       if (await okBtn.isVisible().catch(() => false)) {
-    //         await okBtn.click();
-    //       }
-    //     }
-    //   }
-    // }
+    // ตรวจหาโพสต์แบบร่างจากชื่อหัวข้อ [แบบร่าง / DRAFT] หรือการ์ดแบบร่าง
+    const draftCard = page.getByText(/\[แบบร่าง \/ DRAFT\]|สรุปเนื้อหาเตรียมสอบเคมีเบื้องต้น/i).first();
+    if (await draftCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // คลิกเข้าสู่หน้าโพสต์แบบร่าง
+      await draftCard.click();
+      await page.waitForTimeout(1500);
+
+      // ค้นหาและกดปุ่มลบโพสต์
+      const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์"), button:has-text("ลบ")').first();
+      if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await deleteBtn.click();
+        const confirmDeleteBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
+        if (await confirmDeleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await confirmDeleteBtn.click();
+          await page.waitForTimeout(1500);
+          const okBtn = page.getByRole('button', { name: 'OK' });
+          if (await okBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+            await okBtn.click();
+          }
+        }
+      }
+    }
 
     // ==========================================
     // 📌 โพสต์ครั้งที่ 1
