@@ -23,83 +23,75 @@ export async function cleanAllUserPostsAndDrafts(page: Page) {
   try {
     // 1. นำทางไปยังหน้าโปรไฟล์
     await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState('domcontentloaded');
 
     // 2. เคลียร์แท็บ "แบบร่าง" ทั้งหมด
     const draftsTab = page.getByRole('button', { name: /แบบร่าง/i });
-    if (await draftsTab.isVisible().catch(() => false)) {
+    if (await draftsTab.isVisible({ timeout: 1500 }).catch(() => false)) {
       await draftsTab.click();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(500);
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 5; i++) {
         const editDraftBtn = page.locator('button:has-text("แก้ไขโพสต์"), a:has-text("แก้ไขโพสต์"), a[href*="/post/edit/"], .grid h3, .grid .cursor-pointer').first();
-        if (!(await editDraftBtn.isVisible({ timeout: 2000 }).catch(() => false))) break;
+        if (!(await editDraftBtn.isVisible({ timeout: 1000 }).catch(() => false))) break;
 
         await editDraftBtn.click();
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState('domcontentloaded');
 
         const deleteBtn = page.locator('button:has-text("ลบโพสต์"), button:has-text("ลบ"), a:has-text("ลบโพสต์")').first();
-        if (await deleteBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+        if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await deleteBtn.scrollIntoViewIfNeeded().catch(() => {});
           await deleteBtn.click();
-          await page.waitForTimeout(1000);
 
           const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย"), button:has-text("ตกลง"), button:has-text("ยืนยัน")').first();
-          if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             await confirmBtn.click();
-            await page.waitForTimeout(1500);
 
             const okBtn = page.getByRole('button', { name: 'OK' });
-            if (await okBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+            if (await okBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
               await okBtn.click();
-              await page.waitForTimeout(1000);
             }
           }
         }
 
         await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-        await page.waitForTimeout(1000);
         await page.getByRole('button', { name: /แบบร่าง/i }).click();
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(500);
       }
     }
 
     // 3. เคลียร์แท็บ "โพสต์ของฉัน" ทั้งหมด
     await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-    await page.waitForTimeout(1000);
     const myPostsTab = page.getByRole('button', { name: /โพสต์ของฉัน/i });
-    if (await myPostsTab.isVisible().catch(() => false)) {
+    if (await myPostsTab.isVisible({ timeout: 1500 }).catch(() => false)) {
       await myPostsTab.click();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(500);
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 5; i++) {
         const postCard = page.locator('.grid h3, .grid .cursor-pointer').first();
-        if (!(await postCard.isVisible({ timeout: 2000 }).catch(() => false))) break;
+        if (!(await postCard.isVisible({ timeout: 1000 }).catch(() => false))) break;
 
         await postCard.click();
-        await page.waitForTimeout(1500);
+        await page.waitForLoadState('domcontentloaded');
 
         const deleteBtn = page.locator('button:has-text("ลบโพสต์"), button:has-text("ลบ"), a:has-text("ลบโพสต์")').first();
-        if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await deleteBtn.click();
-          await page.waitForTimeout(1000);
 
           const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย"), button:has-text("ตกลง"), button:has-text("ยืนยัน")').first();
-          if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             await confirmBtn.click();
-            await page.waitForTimeout(1500);
 
             const okBtn = page.getByRole('button', { name: 'OK' });
-            if (await okBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+            if (await okBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
               await okBtn.click();
-              await page.waitForTimeout(1000);
             }
           }
         }
 
         await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-        await page.waitForTimeout(1000);
         await page.getByRole('button', { name: /โพสต์ของฉัน/i }).click();
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(500);
       }
     }
   } catch (error) {
