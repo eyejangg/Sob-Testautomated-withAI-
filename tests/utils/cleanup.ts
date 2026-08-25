@@ -27,36 +27,45 @@ export async function cleanAllUserPostsAndDrafts(page: Page) {
 
     // 2. เคลียร์แท็บ "แบบร่าง" ทั้งหมด
     const draftsTab = page.getByRole('button', { name: /แบบร่าง/i });
-    if (await draftsTab.isVisible({ timeout: 1500 }).catch(() => false)) {
+    if (await draftsTab.isVisible({ timeout: 2500 }).catch(() => false)) {
       await draftsTab.click();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000);
 
       for (let i = 0; i < 5; i++) {
-        const editDraftBtn = page.locator('button:has-text("แก้ไขโพสต์"), a:has-text("แก้ไขโพสต์"), a[href*="/post/edit/"], .grid h3, .grid .cursor-pointer').first();
-        if (!(await editDraftBtn.isVisible({ timeout: 1000 }).catch(() => false))) break;
+        const editBtn = page.getByRole('link', { name: /แก้ไขโพสต์/i })
+          .or(page.getByRole('button', { name: /แก้ไขโพสต์/i }))
+          .or(page.locator('a[href*="/post/edit/"]'))
+          .first();
 
-        await editDraftBtn.click();
-        await page.waitForLoadState('domcontentloaded');
+        if (!(await editBtn.isVisible({ timeout: 2000 }).catch(() => false))) break;
 
-        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), button:has-text("ลบ"), a:has-text("ลบโพสต์")').first();
-        if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await editBtn.click();
+        await page.waitForURL(/.*post\/edit\/.*/, { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+
+        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), button:has-text("ลบ"), button:has-text("ลบแบบร่าง")').first();
+        if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
           await deleteBtn.scrollIntoViewIfNeeded().catch(() => {});
           await deleteBtn.click();
+          await page.waitForTimeout(1000);
 
-          const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย"), button:has-text("ตกลง"), button:has-text("ยืนยัน")').first();
-          if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          const confirmBtn = page.locator('.swal2-confirm, button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ตกลง")').first();
+          if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await confirmBtn.click();
+            await page.waitForTimeout(1500);
 
-            const okBtn = page.getByRole('button', { name: 'OK' });
-            if (await okBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            const okBtn = page.locator('.swal2-confirm, button:has-text("OK")').first();
+            if (await okBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
               await okBtn.click();
+              await page.waitForTimeout(1000);
             }
           }
         }
 
         await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
+        await page.waitForTimeout(1000);
         await page.getByRole('button', { name: /แบบร่าง/i }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
       }
     }
 

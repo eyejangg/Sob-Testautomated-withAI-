@@ -8,8 +8,15 @@
 
 ### 🖥️ 1.1 คำสั่งสั่งรันผ่าน Terminal (CLI Commands)
 ```bash
+
+
+# รัน สองอย่าง
+npx playwright test --headed && npx playwright show-report
+
+
 # 1. อัดการทำงานสร้างสคริปต์อัตโนมัติ (CodeGen)
 npx playwright codegen https://share-ed-frontend-gamma.vercel.app/
+
 
 # 2. รันทดสอบแบบเปิดหน้าจอ Chrome ให้เห็นสดๆ (Headed Mode)
 npx playwright test tests/posts/01-create-post.spec.ts --headed
