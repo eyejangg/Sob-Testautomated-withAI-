@@ -1,88 +1,10 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { cleanAllUserPostsAndDrafts } from '../utils/cleanup';
 /* cSpell:disable */
 
 // กำหนดให้รันทดสอบเรียงลำดับทีละเคสตั้งแต่ 1 ถึง 7 (Sequential / Serial execution)
 test.describe.configure({ mode: 'serial' });
-
-/**
- * 🧹 ฟังก์ชันสำหรับเคลียร์/ลบโพสต์และแบบร่างทั้งหมดของบัญชีผู้ใช้
- * เพื่อให้ระบบพร้อมสำหรับการทดสอบรอบใหม่แบบ Clean State 100%
- */
-async function cleanAllUserPostsAndDrafts(page: any) {
-  try {
-    // 1. นำทางไปยังหน้าโปรไฟล์
-    await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-    await page.waitForTimeout(1000);
-
-    // 2. เคลียร์แท็บ "โพสต์ของฉัน" ทั้งหมด
-    const myPostsTab = page.getByRole('button', { name: /โพสต์ของฉัน/i });
-    if (await myPostsTab.isVisible().catch(() => false)) {
-      await myPostsTab.click();
-      await page.waitForTimeout(1000);
-
-      for (let i = 0; i < 3; i++) {
-        const postLink = page.locator('a[href^="/post/"]:not([href*="/post/edit/"])').first();
-        if (!(await postLink.isVisible({ timeout: 1500 }).catch(() => false))) break;
-
-        await postLink.click();
-        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์")').first();
-        if (await deleteBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-          await deleteBtn.click();
-          const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
-          if (await confirmBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-            await confirmBtn.click();
-            await page.waitForTimeout(1000);
-            const okBtn = page.getByRole('button', { name: 'OK' });
-            if (await okBtn.isVisible().catch(() => false)) {
-              await okBtn.click();
-            }
-          }
-          await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-          await page.getByRole('button', { name: /โพสต์ของฉัน/i }).click();
-          await page.waitForTimeout(1000);
-        } else {
-          break;
-        }
-      }
-    }
-
-    // 3. เคลียร์แท็บ "แบบร่าง" ทั้งหมด
-    await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-    const draftsTab = page.getByRole('button', { name: /แบบร่าง/i });
-    if (await draftsTab.isVisible().catch(() => false)) {
-      await draftsTab.click();
-      await page.waitForTimeout(1000);
-
-      for (let i = 0; i < 3; i++) {
-        const draftLink = page.locator('a[href^="/post/"]:not([href*="/post/edit/"])').first();
-        if (!(await draftLink.isVisible({ timeout: 1500 }).catch(() => false))) break;
-
-        await draftLink.click();
-        const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์"), button:has-text("ลบ")').first();
-        if (await deleteBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-          await deleteBtn.click();
-          const confirmBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
-          if (await confirmBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-            await confirmBtn.click();
-            await page.waitForTimeout(1000);
-            const okBtn = page.getByRole('button', { name: 'OK' });
-            if (await okBtn.isVisible().catch(() => false)) {
-              await okBtn.click();
-            }
-          }
-          await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-          await page.getByRole('button', { name: /แบบร่าง/i }).click();
-          await page.waitForTimeout(1000);
-        } else {
-          break;
-        }
-      }
-    }
-  } catch (error) {
-    // หากเกิดข้อผิดพลาด ให้ข้ามไปขั้นตอนการสร้างโพสต์ทันที
-  }
-}
 
 test.describe('Scenario 2.1: สร้างและเผยแพร่โพสต์สำเร็จ', () => {
 
@@ -364,25 +286,29 @@ test.describe('Scenario 2.6: ระบบไม่อนุญาตให้แ
     // รอยืนยันการเข้าสู่ระบบเสร็จสิ้นสมบูรณ์ (เปลี่ยนหน้าไป /home)
     await expect(page).toHaveURL(/.*home/, { timeout: 15000 });
 
-    // 2. Member A พยายามเข้าถึง URL สำหรับแก้ไขโพสต์ที่เป็นของ Member B โดยตรง (ID โพสต์ของผู้อื่น)
-    const otherUserPostId = '76d3a817-c3b0-45bb-8b51-8d658b2c5246';
+    // 2. ตรวจสอบที่หน้ารายละเอียดโพสต์ของ Member B ว่าไม่มีปุ่มแก้ไขและลบโพสต์
+    const otherUserPostId = 'ae92e738-17e4-4b05-a045-da9773518e15';
+    await page.goto(`https://share-ed-frontend-gamma.vercel.app/post/${otherUserPostId}`);
+    await page.waitForTimeout(2000);
+
+    await expect(page.locator('button:has-text("แก้ไขโพสต์"), a:has-text("แก้ไขโพสต์")')).toBeHidden();
+    await expect(page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์")')).toBeHidden();
+
+    // 3. Member A พยายามเข้าถึง URL สำหรับแก้ไขโพสต์ที่เป็นของ Member B โดยตรง (ID โพสต์ของผู้อื่น)
     await page.goto(`https://share-ed-frontend-gamma.vercel.app/post/edit/${otherUserPostId}`);
+    await page.waitForTimeout(2000);
 
-    // 3. ยืนยันผลลัพธ์ (Assertions):
-    // - กรณีที่ 1: ระบบแสดงข้อความแจ้งเตือนข้อผิดพลาดเรื่องสิทธิ์การเข้าถึง
-    // - หรือกรณีที่ 2: ระบบ Redirect ออกจากหน้าแก้ไข (ไม่ยอมให้คงอยู่ที่หน้าแก้ไข /post/edit/...)
-    const errorAlert = page.getByText(/ไม่มีสิทธิ์|คุณไม่มีสิทธิ์ในการแก้ไขโพสต์นี้|Access Denied|Unauthorized|403|เกิดข้อผิดพลาด/i);
-    const hasErrorAlert = await errorAlert.isVisible({ timeout: 5000 }).catch(() => false);
+    // 4. พยายามกดปุ่ม "บันทึกและโพสต์"
+    const saveBtn = page.getByRole('button', { name: 'บันทึกและโพสต์' });
+    await expect(saveBtn).toBeVisible({ timeout: 15000 });
+    await saveBtn.click();
 
-    if (hasErrorAlert) {
-      await expect(errorAlert).toBeVisible();
-    } else {
-      // ตรวจสอบว่าระบบ Redirect ออกไปยังหน้าอื่น (เช่น /home, /explore, /404) และไม่อนุญาตให้อยู่ในหน้าแก้ไขโพสต์
-      await expect(page).not.toHaveURL(new RegExp(`/post/edit/${otherUserPostId}`));
+    // 5. ยืนยันว่าระบบแสดงแจ้งเตือนปฏิเสธการแก้ไขโพสต์ของผู้อื่น
+    await expect(page.getByText('คุณไม่มีสิทธิ์แก้ไขโพสต์ของผู้อื่น')).toBeVisible({ timeout: 10000 });
+    const okBtn = page.getByRole('button', { name: 'OK' });
+    if (await okBtn.isVisible().catch(() => false)) {
+      await okBtn.click();
     }
-
-    // ยืนยันว่าไม่พบปุ่ม "บันทึกและโพสต์" ของโพสต์ผู้อื่น
-    await expect(page.getByRole('button', { name: 'บันทึกและโพสต์' })).toBeHidden();
   });
 
 });
@@ -404,33 +330,8 @@ test.describe('Scenario 2.7: ระบบปฏิเสธการสร้า
     await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
     await expect(page).toHaveURL(/.*home/, { timeout: 15000 });
 
-    // 2. ไปยังหน้าโปรไฟล์ เปิดดูแท็บ "แบบร่าง" และลบโพสต์ในแบบร่างทิ้งก่อนสร้างโพสต์
-    await page.goto('https://share-ed-frontend-gamma.vercel.app/profile');
-    await page.getByRole('button', { name: /แบบร่าง/i }).click();
-    await page.waitForTimeout(1500);
-
-    // ตรวจหาโพสต์แบบร่างจากชื่อหัวข้อ [แบบร่าง / DRAFT] หรือการ์ดแบบร่าง
-    const draftCard = page.getByText(/\[แบบร่าง \/ DRAFT\]|สรุปเนื้อหาเตรียมสอบเคมีเบื้องต้น/i).first();
-    if (await draftCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // คลิกเข้าสู่หน้าโพสต์แบบร่าง
-      await draftCard.click();
-      await page.waitForTimeout(1500);
-
-      // ค้นหาและกดปุ่มลบโพสต์
-      const deleteBtn = page.locator('button:has-text("ลบโพสต์"), a:has-text("ลบโพสต์"), button:has-text("ลบ")').first();
-      if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await deleteBtn.click();
-        const confirmDeleteBtn = page.locator('button:has-text("ใช่, ลบเลย"), button:has-text("ใช่ ลบเลย"), button:has-text("ใช่ลบเลย")').first();
-        if (await confirmDeleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await confirmDeleteBtn.click();
-          await page.waitForTimeout(1500);
-          const okBtn = page.getByRole('button', { name: 'OK' });
-          if (await okBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-            await okBtn.click();
-          }
-        }
-      }
-    }
+    // 2. ล้างโพสต์เก่าและแบบร่างทั้งหมดของบัญชีก่อนเริ่มต้นการทดสอบ (Cleanup)
+    await cleanAllUserPostsAndDrafts(page);
 
     // ==========================================
     // 📌 โพสต์ครั้งที่ 1
@@ -537,6 +438,10 @@ test.describe('Scenario 2.7: ระบบปฏิเสธการสร้า
 
     // 6. กดปุ่ม "OK" เพื่อปิดหน้าต่างแจ้งเตือน
     await page.getByRole('button', { name: 'OK' }).click();
+
+    // 7. เคลียร์โพสต์และแบบร่างทั้งหมดออกอัตโนมัติหลังจบการทดสอบ (Auto Teardown Cleanup)
+    // เพื่อให้ระบบกลับสู่สถานะ Clean State 100% พร้อมให้คุณกดรันซ้ำกี่รอบก็ผ่านฉลุยทุกครั้ง
+    await cleanAllUserPostsAndDrafts(page);
   });
 
 });
